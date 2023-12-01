@@ -35,4 +35,5 @@ class MLP(nn.Module):
         # x = self.hidden_layer(x)
         # x = self.sigmoid(x)
         x = self.sigmoid(self.hidden_layer2(x))
+        # x = self.hidden_layer2(x)
         return x

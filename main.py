@@ -40,7 +40,7 @@ dataset = TensorDataset(input_tensor, output_tensor)
 # Split the dataset into training and testing sets
 train_dataset, test_dataset = random_split(dataset, [num_train_samples, num_test_samples])
 
-batch_size = 256
+batch_size = 64
 
 # Generate DataLoaders for training and testing set
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
@@ -50,8 +50,8 @@ test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 # test_loader = DataLoader(test_dataset, shuffle=False)
 
 input_size = I * J
-hidden_size1 = input_size * 3
-hidden_size2 = hidden_size1
+hidden_size1 = int(input_size / 2)
+hidden_size2 = 16
 output_size = 1
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -62,6 +62,7 @@ model = MLP_model.MLP(input_size, hidden_size1, hidden_size2, output_size).to(de
 # Use MSE as loss function
 # loss_function = nn.MSELoss()
 loss_function = nn.BCEWithLogitsLoss()
+# loss_function = nn.CrossEntropyLoss()
 
 learning_rate = 0.01
 
@@ -84,51 +85,49 @@ print("Starting training...")
 train_errors = []
 eval_errors = []
 
-for epoch in range(num_epochs):
+def train():
     model.train()
-    total_loss = 0.0
     
     for inputs, targets in train_loader:
         inputs, targets = inputs.to(device), targets.to(device)
+        # print(targets.size())
         optimizer.zero_grad()
         
         # Forward pass
         outputs = model(inputs)
-        # outputs = outputs.round()
+        # pred = torch.argmax(outputs, dim=1, keepdim=True)
+        # targets = targets.long()
+        # targets_one_hot = torch.nn.functional.one_hot(targets, num_classes=2).to(torch.float32)
         
         # Compute the loss
         loss = loss_function(outputs, targets)
         
-        # print("outputs:")
-        # print(outputs)
-        # print("targets:")
-        # print(targets)
-
         loss.backward()
         optimizer.step()
         
-        total_loss += loss.item()
-    
-    # Update the learning rate
-    scheduler.step()        
-    train_error = total_loss / len(train_loader)
-    train_errors.append(train_error)
-    print(f"Epoch {epoch + 1}/{num_epochs}, Loss: {train_error}")
-    
-    # Testing
+
+def test(loader):
     model.eval()
-    with torch.no_grad():
-        total_loss = 0.0
-        for inputs, targets in test_loader:
-            inputs, targets = inputs.to(device), targets.to(device)
-            outputs = model(inputs)
-            # outputs = outputs.round()
-            loss = loss_function(outputs, targets)
-            total_loss += loss.item()
-            
-        avg_loss = total_loss / len(test_loader)
-        eval_errors.append(avg_loss)
-        print(f"         Test Loss: {avg_loss}")
+    
+    correct = 0
+    total = 0
+    for inputs, targets in loader:
+        inputs, targets = inputs.to(device), targets.to(device)
+        outputs = model(inputs)
+        # pred = torch.argmax(outputs, dim=1, keepdim=True)
+        pred = (outputs > 0.5).float()
+        
+        # correct += int((pred == targets).sum())
+        correct += (pred == targets).sum().item()
+        total += targets.size(0)
+    return correct / total
+
+for epoch in range(num_epochs):
+    train()
+    train_acc = test(train_loader)
+    test_acc = test(test_loader)
+    print(f'Epoch: {epoch}, Train Acc: {train_acc:.4f}, Test Acc: {test_acc:.4f}')
+    
     
 # # The following code are used for visualization for one data point
 # # Generate one date point
