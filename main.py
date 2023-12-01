@@ -54,8 +54,10 @@ hidden_size1 = input_size * 3
 hidden_size2 = hidden_size1
 output_size = 1
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(device)
 # Create MLP model
-model = MLP_model.MLP(input_size, hidden_size1, hidden_size2, output_size)
+model = MLP_model.MLP(input_size, hidden_size1, hidden_size2, output_size).to(device)
 
 # Use MSE as loss function
 # loss_function = nn.MSELoss()
@@ -87,6 +89,7 @@ for epoch in range(num_epochs):
     total_loss = 0.0
     
     for inputs, targets in train_loader:
+        inputs, targets = inputs.to(device), targets.to(device)
         optimizer.zero_grad()
         
         # Forward pass
@@ -117,6 +120,7 @@ for epoch in range(num_epochs):
     with torch.no_grad():
         total_loss = 0.0
         for inputs, targets in test_loader:
+            inputs, targets = inputs.to(device), targets.to(device)
             outputs = model(inputs)
             # outputs = outputs.round()
             loss = loss_function(outputs, targets)
