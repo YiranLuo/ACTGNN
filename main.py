@@ -7,12 +7,50 @@ import matplotlib.pyplot as plt
 from torch.utils.data import TensorDataset, random_split, DataLoader
 import torch.optim.lr_scheduler as lr_scheduler
 from mpl_toolkits.mplot3d import Axes3D
+from lshashpy3 import LSHash
+
+def lsh_features(coor_array, hash_size, num_hash_tables):
+    """
+    Apply LSH to the coordinate array to generate hash features for nodes.
+    :param coor_array: Numpy array of coordinates.
+    :param num_features: Number of features for LSH.
+    :param num_hash_tables: Number of hash tables for LSH.
+    :return: Transformed feature array.
+    """
+    lsh = LSHash(hash_size=hash_size, input_dim=coor_array.shape[1], num_hashtables=num_hash_tables)
+
+    # Adding items to LSH
+    for idx, coor in enumerate(coor_array):
+        lsh.index(coor, extra_data=idx)
+
+    # Feature Engineering
+    features = []
+    for node_feature in coor_array:
+        # Query for nearest neighbors
+        nn_results = lsh.query(node_feature, num_results=50, distance_func="euclidean")
+        
+        # Extract distances and indices
+        distances = [result[1] for result in nn_results]
+        indices = [result[0][1] for result in nn_results]
+        
+        # Calculate features based on nearest neighbors
+        avg_distance = np.mean(distances)
+        density = len(distances)
+        variance = np.var(distances)
+        
+        # Append features for this node
+        features.append([avg_distance, density, variance])
+
+    # Convert to numpy array for further analysis
+    # features_array = np.array(features)
+    
+    return np.array(features).astype(np.float32)
 
 I = 100  # number of data points
 J = 2   # number of dimension
-max_K = 1   # number of clusters
+max_K = 3   # number of clusters
 
-dataset_size = 100000
+dataset_size = 20000
 
 # Generate data for training and testing
 input_array, output_array = generate_data.generate_classification_data(I, J, max_K, size=dataset_size)
@@ -72,7 +110,7 @@ num_epochs = 200
 # num_epochs_list = [20, 50, 100, 150, 200]
 
 # Learning rate scheduler
-scheduler = lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.5)
+# scheduler = lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.5)
 
 # Training
 
